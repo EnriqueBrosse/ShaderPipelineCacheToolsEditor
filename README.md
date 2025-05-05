@@ -18,8 +18,13 @@ The **ShaderPipelineCacheToolsEdito**r is a lightweight Unreal Engine plugin tha
 - **Built-in validation** to check and assist in configuring the project correctly for PSO caching.
 - **Supports multiple shader formats**, not just Android Vulkan, making it more flexible than our original tool.
 
+## Instalation Instructions
+Clone this repository in your project plugins folder 
+
+``` git clone https://github.com/EnriqueBrosse/ShaderPipelineCacheToolsEditor.git```
 
 ## How to Use ShaderPipelineCacheToolsEditor
+
 The tool can be found in the Unreal Editor under:
 **Tools → Enrique's Tools → ShaderPipelineCacheToolsEditor**
 
