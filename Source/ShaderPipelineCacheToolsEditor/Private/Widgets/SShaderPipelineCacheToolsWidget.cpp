@@ -2,19 +2,17 @@
 
 
 #include "Widgets/SShaderPipelineCacheToolsWidget.h"
-#include "SlateOptMacros.h"
-#include "Settings/ProjectPackagingSettings.h"
-#include "RHIShaderFormatDefinitions.inl"
-#include "IDesktopPlatform.h"
-#include "DesktopPlatformModule.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
+#include "Settings/ProjectPackagingSettings.h"
+#include "SlateOptMacros.h"
+#include "IDesktopPlatform.h"
+#include "DesktopPlatformModule.h"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SShaderPipelineCacheToolsWidget::Construct(const FArguments& InArgs)
 {
-	AllShaderFormats = GetShaderPlatforms();
 	Platforms = GetAllPlatforms(); 
 	bPSOBundledSettingsOk = AreBundledPSOSettingsOk();
 
@@ -52,6 +50,7 @@ void SShaderPipelineCacheToolsWidget::Construct(const FArguments& InArgs)
 			.Text(FText::FromString("Fix Bundled PSO Settings"))
 			.IsEnabled_Lambda([this]() {return !bPSOBundledSettingsOk; })
 			.OnClicked(this, &SShaderPipelineCacheToolsWidget::FixBundledPSOSettings)
+			.HAlign(EHorizontalAlignment::HAlign_Center)
 		]
 		+SVerticalBox::Slot()
 		.VAlign(EVerticalAlignment::VAlign_Top)
@@ -61,7 +60,6 @@ void SShaderPipelineCacheToolsWidget::Construct(const FArguments& InArgs)
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.HAlign(EHorizontalAlignment::HAlign_Right)
-			//.AutoWidth()
 			.Padding(padding)
 			[
 				SNew(STextBlock)
@@ -69,7 +67,6 @@ void SShaderPipelineCacheToolsWidget::Construct(const FArguments& InArgs)
 			]
 			+ SHorizontalBox::Slot()
 			.HAlign(EHorizontalAlignment::HAlign_Left)
-			//.AutoWidth()
 			.Padding(padding)
 			[
 				SAssignNew(PlatformComboBox, SComboBox<FName>)
@@ -84,34 +81,6 @@ void SShaderPipelineCacheToolsWidget::Construct(const FArguments& InArgs)
 			]
 		]
 		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(EVerticalAlignment::VAlign_Top)
-		.Padding(padding)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.HAlign(EHorizontalAlignment::HAlign_Right)
-			.Padding(padding)
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString("ShaderPlatform: "))
-			]
-			+ SHorizontalBox::Slot()
-			.HAlign(EHorizontalAlignment::HAlign_Left)
-			.Padding(padding)
-			[
-				SAssignNew(ShaderPlatformComboBox, SComboBox<FName>)
-				.OptionsSource(&AllShaderFormats)
-				.OnGenerateWidget_Lambda([](FName InName){
-						return SNew(STextBlock).Text(FText::FromName(InName));
-					})
-				[
-					SNew(STextBlock)
-						.Text_Lambda([this]() { return FText::FromName(ShaderPlatformComboBox->GetSelectedItem()); })
-				]
-			]
-		]
-		+ SVerticalBox::Slot()
 		.VAlign(EVerticalAlignment::VAlign_Top)
 		.AutoHeight()
 		.Padding(padding)
@@ -119,7 +88,6 @@ void SShaderPipelineCacheToolsWidget::Construct(const FArguments& InArgs)
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.HAlign(EHorizontalAlignment::HAlign_Right)
-			//.AutoWidth()
 			.Padding(padding)
 			[
 				SNew(STextBlock)
@@ -140,7 +108,6 @@ void SShaderPipelineCacheToolsWidget::Construct(const FArguments& InArgs)
 		]
 		+ SVerticalBox::Slot()
 		.VAlign(EVerticalAlignment::VAlign_Top)
-		//.AutoHeight()
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -225,32 +192,18 @@ FReply SShaderPipelineCacheToolsWidget::FixBundledPSOSettings()
 
 FReply SShaderPipelineCacheToolsWidget::HandlePipelineCacheSelection()
 {	
-	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
-	const void* ParentWindowHandle = nullptr;
-	if (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid())
-	{
-		ParentWindowHandle = ParentWindow->GetNativeWindow()->GetOSWindowHandle();
-	}
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	if (DesktopPlatform)
-	{
-		TArray<FString> OutNames;
-		// We don't need to have a path here as the build could be installed everywhere 
-		FString DefaultOutputPath = "";
-		if (DesktopPlatform->OpenFileDialog(ParentWindowHandle, TEXT("select shader caches"), DefaultOutputPath, FString(""), TEXT("pipeline cache|*.rec.upipelinecache"), EFileDialogFlags::Multiple, OutNames))
-		{
-			for (const FString& File : OutNames)
-			{
-				PipelineCachesFiles.AddUnique(FName(File));
-			}
-			PipelineCachesListbox->RequestListRefresh();
-		}
-		 
-	}
+	OpenFileDialog("select shader caches", "", "pipeline cache|*.rec.upipelinecache", PipelineCachesFiles, PipelineCachesListbox);
 	return FReply::Handled();
 }
 
 FReply SShaderPipelineCacheToolsWidget::HandleShaderKeySelection()
+{
+	const FString DefaultOutputPath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Cooked"), PlatformComboBox->GetSelectedItem().ToString(), FApp::GetProjectName(), TEXT("Metadata"), TEXT("PipelineCaches"));
+	OpenFileDialog("select shader keys", DefaultOutputPath, "shader keys|*.shk", ShaderKeyFiles, PipelineKeysListbox);
+	return FReply::Handled();
+}
+
+void SShaderPipelineCacheToolsWidget::OpenFileDialog(const FString& DialogTitle, const FString& DefaultPath, const FString& FileTypes, TArray<FName>& SourceItems, const TSharedPtr<SListView<FName>>& ListView)
 {
 	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
 	const void* ParentWindowHandle = nullptr;
@@ -259,23 +212,23 @@ FReply SShaderPipelineCacheToolsWidget::HandleShaderKeySelection()
 		ParentWindowHandle = ParentWindow->GetNativeWindow()->GetOSWindowHandle();
 	}
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	if (DesktopPlatform)
+	if (!DesktopPlatform)
 	{
-		TArray<FString> OutNames;
-		// Setting the default path on what the documentation said it would give
-
-		FString DefaultOutputPath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Cooked"), PlatformComboBox->GetSelectedItem().ToString(), FApp::GetProjectName(), TEXT("Metadata"), TEXT("PipelineCaches"));
-
-		if (DesktopPlatform->OpenFileDialog(ParentWindowHandle, TEXT("select shader keys"), DefaultOutputPath, FString(""), TEXT("shader keys|*.shk"), EFileDialogFlags::Multiple, OutNames))
-		{
-			for (const FString& File : OutNames)
-			{
-				ShaderKeyFiles.AddUnique(FName(File));
-			}
-			PipelineKeysListbox->RequestListRefresh();
-		}
+		return;
 	}
-	return FReply::Handled();
+	TArray<FString> OutNames;
+	if (!DesktopPlatform->OpenFileDialog(ParentWindowHandle, DialogTitle, DefaultPath, FString(""), FileTypes, EFileDialogFlags::Multiple, OutNames))
+	{
+		return;
+	}
+	for (const FString& File : OutNames)
+	{
+		SourceItems.AddUnique(FName(File));
+	}
+	if (ListView.IsValid())
+	{
+		ListView->RequestListRefresh();
+	}
 }
 
 TSharedRef<ITableRow> SShaderPipelineCacheToolsWidget::GenerateRow(FName RowName, const TSharedRef<STableViewBase>& OwnerTable)
@@ -342,32 +295,8 @@ FReply SShaderPipelineCacheToolsWidget::CombinePSOFiles()
 		AddErrorMessage("Prefix was empty");
 		return FReply::Handled();
 	}
-
-	// Check if every shader key file has the same ID
-	// Normally the id of the shaderpipelinecache ends with -ShaderFormatName.shk
-	// ShaderStableInfo-Global-PCD3D_SM5.shk
-	const FString ShaderFormat = GetShaderFormatFromFile(ShaderKeyFiles[0]); 
-	if (ShaderFormat.IsEmpty())
-	{
-		AddErrorMessage("Shader Format not found on file: " + ShaderKeyFiles[0].ToString());
-		return FReply::Handled();
-	}
-	TArray<FString> Errors;
-	const int32 Size = ShaderKeyFiles.Num(); 
-	for (int i = 1; i < Size; i++)
-	{
-		const FString CurrentShaderFormat = GetShaderFormatFromFile(ShaderKeyFiles[i]);
-		if (CurrentShaderFormat.IsEmpty())
-		{
-			Errors.Add("Shader Format not found on file: " + ShaderKeyFiles[i].ToString());
-			continue;
-		}
-		if (ShaderFormat != CurrentShaderFormat)
-		{
-			Errors.Add("Current shader format:" + CurrentShaderFormat + " not equal to first shader format found: " + ShaderFormat + " File: " + ShaderKeyFiles[i].ToString());
-			continue;
-		}
-	}
+	TArray<FString> Errors; 
+	const FString ShaderFormat = VerifyFiles(Errors);
 	if (Errors.Num() != 0)
 	{
 		AddErrorMessage(FString::Join(Errors, TEXT("\n"))); 
@@ -387,8 +316,6 @@ FReply SShaderPipelineCacheToolsWidget::CombinePSOFiles()
 		CopyFile(File, TempDirectory);
 	}
 	// Commandlet to run for combining the PSO caches
-
-	
 	FProcHandle ProcessHandle;
 	bool bCancelled = false;
 	
@@ -482,22 +409,6 @@ void SShaderPipelineCacheToolsWidget::AddErrorMessage(const FString& ErrorText)
 	FMessageDialog::Open(EAppMsgCategory::Error, EAppMsgType::Ok, FText::FromString(ErrorText));
 }
 
-FString SShaderPipelineCacheToolsWidget::GetShaderFormatFromFile(FName StableShaderFile)
-{
-	// Normally the id of the shaderpipelinecache ends with -ShaderFormatName.shk
-	// ShaderStableInfo-Global-PCD3D_SM5.shk
-	FString File = StableShaderFile.ToString();
-	int Index = INDEX_NONE; 
-	File.FindLastChar('-', Index);
-	if (Index == INDEX_NONE)
-	{
-		return FString();
-	}
-	FString ShaderFormat = File.RightChop(Index + 1); 
-	ShaderFormat.ReplaceInline(TEXT(".shk"), TEXT(""));
-	return ShaderFormat;
-}
-
 void SShaderPipelineCacheToolsWidget::CopyFile(const FName& File, const FString& ToDirectory)
 {
 	FString CurrentFile = File.ToString();
@@ -520,34 +431,83 @@ void SShaderPipelineCacheToolsWidget::CopyFile(const FString& BaseFileName, cons
 	IFileManager::Get().Copy(*FullPath, *OriginalPath);
 }
 
+const FString SShaderPipelineCacheToolsWidget::VerifyFiles(TArray<FString>& Errors) const
+{
+	// Check if every shader key file has the same ID
+	// Normally the id of the shaderpipelinecache ends with -ShaderFormatName.shk
+	// ShaderStableInfo-Global-PCD3D_SM5.shk
+	const FString ShaderFormat = GetShaderFormatFromShaderKeyFile(ShaderKeyFiles[0]);
+	if (ShaderFormat.IsEmpty())
+	{
+		Errors.Add("Shader Format not found on file: " + ShaderKeyFiles[0].ToString());
+		return "";
+	}
+	const int32 Size = ShaderKeyFiles.Num();
+	for (int i = 1; i < Size; i++)
+	{
+		const FString CurrentShaderFormat = GetShaderFormatFromShaderKeyFile(ShaderKeyFiles[i]);
+		if (CurrentShaderFormat.IsEmpty())
+		{
+			Errors.Add("Shader Format not found on file: " + ShaderKeyFiles[i].ToString());
+			continue;
+		}
+		if (ShaderFormat != CurrentShaderFormat)
+		{
+			Errors.Add("Current shader format:" + CurrentShaderFormat + " not equal to first shader format found: " + ShaderFormat + " File: " + ShaderKeyFiles[i].ToString());
+			continue;
+		}
+	}
+
+	for (const FName& CurrentFile : PipelineCachesFiles)
+	{
+		FString FoundShaderFormat = GetShaderFormatFromPipelinecacheFile(CurrentFile); 
+		if (FoundShaderFormat.IsEmpty())
+		{
+			Errors.Add("Shader Format not found on file: " + CurrentFile.ToString());
+			continue;
+		}
+		if (ShaderFormat != FoundShaderFormat)
+		{
+			Errors.Add("Current shader format:" + FoundShaderFormat + " not equal to first shader format found: " + ShaderFormat + " File: " + CurrentFile.ToString());
+			continue;
+		}
+	}
+
+	return ShaderFormat;
+}
+
+FString SShaderPipelineCacheToolsWidget::GetShaderFormatFromShaderKeyFile(FName StableShaderFile)const
+{
+	// Normally the id of the shaderpipelinecache ends with -ShaderFormatName.shk
+	// ShaderStableInfo-Global-PCD3D_SM5.shk
+	FString File = StableShaderFile.ToString();
+	int Index = INDEX_NONE;
+	File.FindLastChar('-', Index);
+	if (Index == INDEX_NONE)
+	{
+		return FString();
+	}
+	FString ShaderFormat = File.RightChop(Index + 1);
+	ShaderFormat.ReplaceInline(TEXT(".shk"), TEXT(""));
+	return ShaderFormat;
+}
+
+FString SShaderPipelineCacheToolsWidget::GetShaderFormatFromPipelinecacheFile(FName PipelineCacheFile)const
+{
+	//++UE5+Release-5.5-CL-40574608-PluginCreator_PCD3D_SM5_CB1A39874D0D96EDC8F2F28BD0E9834C.rec.upipelinecache
+	const FRegexPattern Pattern = FRegexPattern(FString::Printf(TEXT(".*-%s_(.*)?_.*"), FApp::GetProjectName()), ERegexPatternFlags::None);
+	FRegexMatcher Matcher = FRegexMatcher(Pattern, PipelineCacheFile.ToString());
+	if (Matcher.FindNext())
+	{
+		const FString ShaderGroup = Matcher.GetCaptureGroup(1);
+		return ShaderGroup;
+	}
+	return FString();
+}
+
 const FString SShaderPipelineCacheToolsWidget::GetDefaultEngineIniName() const
 {
 	return FConfigCacheIni::NormalizeConfigIniPath(FString::Printf(TEXT("%sDefault%s.ini"), *FPaths::SourceConfigDir(), TEXT("Engine")));;
-}
-
-const TArray<FName> SShaderPipelineCacheToolsWidget::GetShaderPlatforms() const
-{
-	return {
-		NAME_PCD3D_SM6, 
-		NAME_PCD3D_SM5, 
-		NAME_PCD3D_ES3_1, 
-		NAME_GLSL_150_ES31, 
-		NAME_GLSL_ES3_1_ANDROID, 
-		NAME_SF_METAL, 
-		NAME_SF_METAL_MRT, 
-		NAME_SF_METAL_TVOS, 
-		NAME_SF_METAL_MRT_TVOS, 
-		NAME_SF_METAL_MRT_MAC, 
-		NAME_SF_METAL_SM5,
-		NAME_SF_METAL_SM6,
-		NAME_SF_METAL_SIM,
-		NAME_SF_METAL_MACES3_1, 
-		NAME_VULKAN_ES3_1_ANDROID, 
-		NAME_VULKAN_ES3_1, 
-		NAME_VULKAN_SM5,
-		NAME_VULKAN_SM6,
-		NAME_VULKAN_SM5_ANDROID
-	};
 }
 
 const TArray<FName> SShaderPipelineCacheToolsWidget::GetAllPlatforms() const

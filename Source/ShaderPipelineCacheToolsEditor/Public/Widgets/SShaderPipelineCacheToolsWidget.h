@@ -37,25 +37,25 @@ protected:
 	FReply CombinePSOFiles(); 
 
 	void AddErrorMessage(const FString& ErrorText);
-	FString GetShaderFormatFromFile(FName StableShaderFile); 
+	virtual const FString VerifyFiles(TArray<FString>& Errors)const; 
+	FString GetShaderFormatFromShaderKeyFile(FName StableShaderFile)const; 
+	FString GetShaderFormatFromPipelinecacheFile(FName PipelineCacheFile)const;
 
 	void CopyFile(const FString& BaseFileName, const FString& FromDirectory, const FString& ToDirectory, int Attempt = 0);
 	void CopyFile(const FName& File, const FString& ToDirectory);
-private: 
 
+	void OpenFileDialog(const FString& DialogTitle, const FString& DefaultPath, const FString& FileTypes, TArray<FName>& SourceItems, const TSharedPtr<SListView<FName>>& ListView);
+private: 
 	const FString GetDefaultEngineIniName()const; 
-	const TArray<FName> GetShaderPlatforms()const;
 	const TArray<FName> GetAllPlatforms()const;
 	bool bPSOBundledSettingsOk; 
 	FString Prefix;
-	FText PSOBundledSettingsStatus; 
-	TArray<FName> AllShaderFormats; 
+	FText PSOBundledSettingsStatus;
 	TArray<FName> Platforms;
 	TArray<FName> ShaderKeyFiles;
 	TArray<FName> PipelineCachesFiles;
 
 	TSharedPtr<SComboBox<FName>> PlatformComboBox;
-	TSharedPtr<SComboBox<FName>> ShaderPlatformComboBox;
 	TSharedPtr<SListView<FName>> PipelineCachesListbox;
 	TSharedPtr<SListView<FName>> PipelineKeysListbox;
 };

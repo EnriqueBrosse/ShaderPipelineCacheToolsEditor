@@ -74,10 +74,15 @@ void FShaderPipelineCacheToolsEditorModule::RegisterMenus()
 	FToolMenuOwnerScoped OwnerScoped(this);
 
 	{
-		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Window");
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Tools");
 		{
-			FToolMenuSection& Section = Menu->FindOrAddSection("WindowLayout");
-			Section.AddMenuEntryWithCommandList(FShaderPipelineCacheToolsEditorCommands::Get().OpenPluginWindow, PluginCommands);
+			FName SectionName = "Enrique's Tools";
+			FToolMenuSection* Section = Menu->FindSection(SectionName);
+			if (!Section)
+			{
+				Section = &Menu->AddSection(SectionName, FText::FromString(SectionName.ToString()));
+			}
+			Section->AddMenuEntryWithCommandList(FShaderPipelineCacheToolsEditorCommands::Get().OpenPluginWindow, PluginCommands);
 		}
 	}
 

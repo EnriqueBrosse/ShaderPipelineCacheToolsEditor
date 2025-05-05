@@ -44,7 +44,6 @@ public class ShaderPipelineCacheToolsEditor : ModuleRules
 				"Slate",
 				"SlateCore",
                 "DeveloperToolSettings",
-                "RHI",
                 "DesktopPlatform"
 				// ... add private dependencies that you statically link with here ...	
 			}
